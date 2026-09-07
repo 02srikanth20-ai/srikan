@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Big-M Simplex Method Solver</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f6f9;
+      margin: 40px;
+    }
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      max-width: 700px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .btn {
+      background-color: #3182ce;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 15px;
+    }
+    .btn:hover {
+      background-color: #2b6cb0;
+    }
+    .output-box {
+      background-color: #1a202c;
+      color: #48bb78;
+      font-family: 'Courier New', monospace;
+      padding: 20px;
+      border-radius: 6px;
+      margin-top: 20px;
+      white-space: pre-line;
+    }
+  </style>
+
+  <!-- MathJax Configuration & Script -->
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+
+<div class="card">
+  <h2>1. Big-M Simplex Method Solver</h2>
+
+  <p><strong>Problem Formulation:</strong></p>
+  <p>Maximize $Z = 3x_1 + 5x_2$</p>
+
+  <p>Subject to:</p>
+  <p>$x_1 \le 4$<br>
+  $2x_2 \le 12$<br>
+  $3x_1 + 2x_2 \ge 18$</p>
+
+  <button class="btn" onclick="solveBigM()">Solve using Big-M Method</button>
+
+  <div id="output" class="output-box" style="display: none;"></div>
+</div>
+
+<script>
+function solveBigM() {
+  // Step 1: Big-M Setup
+  // Max Z = 3x1 + 5x2 + 0s1 + 0s2 + 0e3 - M*a3
+  // Constraints converted to equality standard form:
+  // 1) x1 + s1 = 4
+  // 2) 2x2 + s2 = 12
+  // 3) 3x1 + 2x2 - e3 + a3 = 18
+
+  const M = 10000; // Big-M penalty constant
+
+  // Simplex Table: [x1, x2, s1, s2, e3, a3, RHS]
+  let table = [
+    [1, 0, 1, 0,  0, 0,  4], // s1
+    [0, 2, 0, 1,  0, 0, 12], // s2
+    [3, 2, 0, 0, -1, 1, 18], // a3
+    // Cj - Zj row initialized for Max Problem
+    [-3 + 3*M, -5 + 2*M, 0, 0, -M, 0, 18*M] 
+  ];
+
+  let basis = [2, 3, 5]; // Column indices of initial basis [s1 (col 2), s2 (col 3), a3 (col 5)]
+  let cols = 6;
+  let rows = 3;
+
+  while (true) {
+    // Find entering variable (most negative in Cj-Zj row)
+    let minVal = 0;
+    let pivotCol = -1;
+    for (let j = 0; j < cols; j++) {
+      if (table[rows][j] < minVal) {
+        minVal = table[rows][j];
+        pivotCol = j;
+      }
+    }
+
+    if (pivotCol === -1) break; // Optimal solution found
+
+    // Find leaving variable (Minimum ratio test)
+    let minRatio = Infinity;
+    let pivotRow = -1;
+    for (let i = 0; i < rows; i++) {
+      if (table[i][pivotCol] > 0) {
+        let ratio = table[i][cols] / table[i][pivotCol];
+        if (ratio < minRatio) {
+          minRatio = ratio;
+          pivotRow = i;
+        }
+      }
+    }
+
+    if (pivotRow === -1) {
+      alert("Unbounded solution");
+      return;
+    }
+
+    // Pivot operations
+    let pivotElement = table[pivotRow][pivotCol];
+    basis[pivotRow] = pivotCol;
+
+    for (let j = 0; j <= cols; j++) {
+      table[pivotRow][j] /= pivotElement;
+    }
+
+    for (let i = 0; i <= rows; i++) {
+      if (i !== pivotRow) {
+        let factor = table[i][pivotCol];
+        for (let j = 0; j <= cols; j++) {
+          table[i][j] -= factor * table[pivotRow][j];
+        }
+      }
+    }
+  }
+
+  // Extract variables
+  let vars = { x1: 0, x2: 0 };
+  for (let i = 0; i < rows; i++) {
+    if (basis[i] === 0) vars.x1 = table[i][cols];
+    if (basis[i] === 1) vars.x2 = table[i][cols];
+  }
+
+  let zVal = 3 * vars.x1 + 5 * vars.x2;
+
+  // Render Result
+  let outputDiv = document.getElementById("output");
+  outputDiv.style.display = "block";
+  outputDiv.innerText = `Optimization Successful!\nOptimal Decision Variables:\n  x1 = ${vars.x1.toFixed(2)}\n  x2 = ${vars.x2.toFixed(2)}\nOptimal Objective Value (Max Z) = ${zVal.toFixed(2)}`;
+}
+</script>
+
+</body>
+</html>
